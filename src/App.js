@@ -461,20 +461,22 @@ function CandidateTest({candidataId,candidataNombre,onComplete,onExit}){
   );
 }
 
-// Semaphore rating values: "bien" | "explorar" | "alerta" | null
+// ── Semáforo ─────────────────────────────────────────────────────
 const SEMAFORO=[
   {v:"bien",    label:"Bien",    emoji:"✅", bg:"#dcfce7", border:"#16a34a", text:"#15803d"},
   {v:"explorar",label:"Explorar",emoji:"⚠️", bg:"#fef9c3", border:"#ca8a04", text:"#a16207"},
   {v:"alerta",  label:"Alerta",  emoji:"🚨", bg:"#fee2e2", border:"#dc2626", text:"#b91c1c"},
 ];
-function SemaforoBtn({value,onChange}){
+function SemaforoBtn({value,onChange,size="md"}){
+  const pad=size==="sm"?"4px 9px":"6px 14px";
+  const fz=size==="sm"?11:13;
   return(
-    <div style={{display:"flex",gap:6}}>
+    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
       {SEMAFORO.map(s=>{
         const sel=value===s.v;
         return(
           <button key={s.v} onClick={()=>onChange(sel?null:s.v)}
-            style={{padding:"5px 11px",borderRadius:20,border:`1.5px solid ${sel?s.border:"#e5e7eb"}`,background:sel?s.bg:"transparent",color:sel?s.text:"#9ca3af",fontSize:12,fontWeight:sel?700:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}}>
+            style={{padding:pad,borderRadius:20,border:`2px solid ${sel?s.border:"#e5e7eb"}`,background:sel?s.bg:"#fff",color:sel?s.text:"#9ca3af",fontSize:fz,fontWeight:sel?700:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap",boxShadow:sel?`0 2px 8px ${s.border}33`:"none"}}>
             {s.emoji} {s.label}
           </button>
         );
@@ -483,181 +485,298 @@ function SemaforoBtn({value,onChange}){
   );
 }
 
+// ── InterviewGuide — 3 pasos ──────────────────────────────────────
+// paso 0 = BRIEFING (antes de que entre la candidata)
+// paso 1 = ENTREVISTA (categorías con alerta + preguntas dirigidas)
+// paso 2 = VEREDICTO (semáforo x categoría + nota general)
 function InterviewGuide({candidata,onBack,onSave}){
   const resultado=candidata.resultado_test||{};
   const catScores=resultado._catScores||{};
-  // entrevistaCal stores per-question semaphore + per-question notes + per-category final rating
-  // Structure: { pregId: {semaforo:"bien"|"explorar"|"alerta", nota:""}, catKey_final: "bien"|... }
-  const [cal,setCal]=useState(candidata.entrevista_cal||{});
-  const [notas,setNotas]=useState(candidata.entrevista_notas||"");
-  const [guardado,setGuardado]=useState(false);
-  const [catActiva,setCatActiva]=useState(Object.keys(CAT_META)[0]);
-  const [notaExpandida,setNotaExpandida]=useState({});
+  const catKeys=Object.keys(CAT_META);
 
-  const setPregSem=(pregId,val)=>setCal(c=>({...c,[pregId]:{...(c[pregId]||{}),semaforo:val}}));
-  const setPregNota=(pregId,val)=>setCal(c=>({...c,[pregId]:{...(c[pregId]||{}),nota:val}}));
-  const setCatFinal=(catKey,val)=>setCal(c=>({...c,[`${catKey}_final`]:val}));
+  // cal: { [catKey+"_cal"]: "bien"|"explorar"|"alerta", [catKey+"_nota"]: str }
+  const [cal,setCal]=useState(candidata.entrevista_cal||{});
+  const [notaGral,setNotaGral]=useState(candidata.entrevista_notas||"");
+  const [guardado,setGuardado]=useState(false);
+  const [paso,setPaso]=useState(0);   // 0=briefing 1=entrevista 2=veredicto
+  const [catIdx,setCatIdx]=useState(0);
+
+  const scoreColor=s=>s>=80?T.success:s>=60?T.teal:s>=40?T.gold:T.warn;
+  const catScore=(k)=>Math.round((catScores[k]||0)*20);
+
+  // Categorías ordenadas peor→mejor para enfocar la entrevista
+  const catsSorted=[...catKeys].sort((a,b)=>catScore(a)-catScore(b));
+  // Alertas = preguntas con puntos 0 o 1
+  const alertasPorCat=(catKey)=>TEST_PREGUNTAS.filter(p=>{
+    if(p.categoria!==catKey)return false;
+    const r=resultado[p.id];return r&&r.puntos<=1;
+  });
+  const totalAlertas=catKeys.reduce((acc,k)=>acc+alertasPorCat(k).length,0);
+
+  const setCatCal=(k,v)=>setCal(c=>({...c,[k+"_cal"]:v}));
+  const setCatNota=(k,v)=>setCal(c=>({...c,[k+"_nota"]:v}));
 
   const guardar=async()=>{
-    await supabase.from("candidatas").update({entrevista_cal:cal,entrevista_notas:notas}).eq("id",candidata.id);
-    setGuardado(true);setTimeout(()=>setGuardado(false),2000);
-    if(onSave)onSave({entrevista_cal:cal,entrevista_notas:notas});
+    await supabase.from("candidatas").update({entrevista_cal:cal,entrevista_notas:notaGral}).eq("id",candidata.id);
+    setGuardado(true);setTimeout(()=>setGuardado(false),2500);
+    if(onSave)onSave({entrevista_cal:cal,entrevista_notas:notaGral});
   };
 
-  const testScore=()=>{const cats=Object.keys(CAT_META);const vals=cats.map(k=>catScores[k]||0);const avg=vals.reduce((a,b)=>a+b,0)/cats.length;return Math.round(avg*20);};
-  const scoreColor=s=>s>=80?T.success:s>=60?T.teal:s>=40?T.gold:T.warn;
+  // Puntaje entrevista = promedio de los semáforos asignados (bien=3, explorar=2, alerta=1)
+  const semVal=(v)=>v==="bien"?3:v==="explorar"?2:v==="alerta"?1:0;
+  const puntajeEntrevista=()=>{
+    const vals=catKeys.map(k=>semVal(cal[k+"_cal"])).filter(v=>v>0);
+    if(!vals.length)return null;
+    const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+    return avg>=2.5?"bien":avg>=1.5?"explorar":"alerta";
+  };
 
-  // Count semaforos across all pregs
-  const countSem=v=>TEST_PREGUNTAS.filter(p=>cal[p.id]?.semaforo===v).length;
-  const totalCalificadas=TEST_PREGUNTAS.filter(p=>cal[p.id]?.semaforo).length;
+  // ── Paso 0: Briefing ─────────────────────────────────────────────
+  if(paso===0){
+    const testPct=candidata.test_completado
+      ?Math.round(catKeys.reduce((a,k)=>a+(catScores[k]||0),0)/catKeys.length*20)
+      :null;
+    const semColorBg=s=>s>=80?"#dcfce7":s>=60?"#d0f4f4":s>=40?"#fef9c3":"#fee2e2";
+    const semColorTxt=s=>s>=80?"#15803d":s>=60?T.tealDark:s>=40?"#92400e":"#991b1b";
+    return(
+      <div style={{minHeight:"100vh",background:T.soft,fontFamily:"'Helvetica Neue',Arial,sans-serif"}}>
+        <div style={{background:`linear-gradient(150deg,${T.tealDeep},${T.teal})`,padding:"20px 20px 0",color:T.white}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+            <button onClick={onBack} style={{background:"rgba(255,255,255,0.15)",border:"none",color:T.white,padding:"7px 16px",borderRadius:20,cursor:"pointer",fontSize:13}}>← Volver</button>
+            <div style={{fontSize:13,fontWeight:700,opacity:0.85}}>Guía de Entrevista</div>
+            <div style={{width:72}}/>
+          </div>
+          <div style={{marginBottom:6}}><div style={{fontSize:19,fontWeight:700}}>{candidata.nombre}</div><div style={{fontSize:12,opacity:0.7}}>#{candidata.codigo_seguimiento}</div></div>
+          <div style={{fontSize:12,opacity:0.6,marginBottom:16}}>PASO 1 DE 3 — Briefing previo</div>
+          <svg viewBox="0 0 400 16" style={{display:"block",marginBottom:-1}}><path d="M0,8 C100,16 300,0 400,8 L400,16 L0,16 Z" fill={T.soft}/></svg>
+        </div>
 
-  const catKeys=Object.keys(CAT_META);
-  const cat=CAT_META[catActiva];
-  const pregsCat=TEST_PREGUNTAS.filter(p=>p.categoria===catActiva);
-  const followUps=FOLLOW_UPS[catActiva]||[];
+        <div style={{maxWidth:480,margin:"0 auto",padding:"20px 16px 40px"}}>
+          {!candidata.test_completado&&(
+            <div style={{background:"#fef9c3",border:"1px solid #fde047",borderRadius:14,padding:"14px 16px",marginBottom:18,fontSize:14,color:"#854d0e"}}>
+              ⚠️ La candidata <strong>no completó el test</strong>. Usa solo las preguntas de seguimiento en la entrevista.
+            </div>
+          )}
 
-  // Per-category semaphore count
-  const catSemCount=(catKey,v)=>TEST_PREGUNTAS.filter(p=>p.categoria===catKey&&cal[p.id]?.semaforo===v).length;
+          {candidata.test_completado&&(
+            <>
+              {/* Puntaje global */}
+              <div style={{background:T.white,borderRadius:18,padding:"20px",marginBottom:16,border:`1px solid ${T.border}`,textAlign:"center"}}>
+                <div style={{fontSize:12,color:T.inkLight,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>RESULTADO DEL TEST</div>
+                <div style={{fontSize:52,fontWeight:900,color:scoreColor(testPct),lineHeight:1}}>{testPct}%</div>
+                <div style={{fontSize:13,color:T.inkLight,marginTop:6}}>{totalAlertas} respuesta{totalAlertas!==1?"s":""} con alerta detectada{totalAlertas!==1?"s":""}</div>
+              </div>
 
+              {/* Categorías rankeadas */}
+              <div style={{background:T.white,borderRadius:18,padding:"18px",marginBottom:16,border:`1px solid ${T.border}`}}>
+                <div style={{fontSize:12,color:T.inkLight,fontWeight:700,letterSpacing:0.5,marginBottom:14}}>ÁREAS — PEOR A MEJOR</div>
+                {catsSorted.map((k,i)=>{
+                  const cm=CAT_META[k];const pct=catScore(k);const alertas=alertasPorCat(k);
+                  return(
+                    <div key={k} style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+                      <div style={{width:24,height:24,borderRadius:8,background:pct>=80?"#dcfce7":pct>=60?"#d0f4f4":pct>=40?"#fef9c3":"#fee2e2",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{cm.icon}</div>
+                      <div style={{flex:1}}>
+                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                          <span style={{fontSize:13,fontWeight:600,color:T.ink}}>{cm.label}</span>
+                          <span style={{fontSize:13,fontWeight:700,color:scoreColor(pct)}}>{pct}%</span>
+                        </div>
+                        <div style={{height:6,background:"#e5e7eb",borderRadius:3,overflow:"hidden"}}>
+                          <div style={{width:`${pct}%`,height:"100%",background:scoreColor(pct),borderRadius:3,transition:"width 0.5s"}}/>
+                        </div>
+                      </div>
+                      {alertas.length>0&&<span style={{fontSize:11,fontWeight:700,color:"#b91c1c",background:"#fee2e2",border:"1px solid #fca5a5",padding:"2px 7px",borderRadius:10,whiteSpace:"nowrap",flexShrink:0}}>🚨 {alertas.length}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Alertas concretas */}
+              {totalAlertas>0&&(
+                <div style={{background:"#fff7ed",borderRadius:18,padding:"18px",marginBottom:16,border:"1px solid #fed7aa"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#c2410c",letterSpacing:0.5,marginBottom:12}}>🎯 EXPLORAR EN LA ENTREVISTA</div>
+                  {catKeys.filter(k=>alertasPorCat(k).length>0).map(k=>{
+                    const cm=CAT_META[k];
+                    return(
+                      <div key={k} style={{marginBottom:14}}>
+                        <div style={{fontSize:12,fontWeight:700,color:cm.color,marginBottom:6}}>{cm.icon} {cm.label}</div>
+                        {alertasPorCat(k).map(p=>{
+                          const r=resultado[p.id];const idx=r?.opcion??null;
+                          return(
+                            <div key={p.id} style={{background:"#fff",borderRadius:10,padding:"10px 12px",marginBottom:6,border:"1px solid #fed7aa"}}>
+                              <div style={{fontSize:12,color:T.inkLight,marginBottom:4,lineHeight:1.4}}>{p.pregunta}</div>
+                              {idx!=null&&<div style={{fontSize:12,fontWeight:600,color:"#c2410c",fontStyle:"italic"}}>Respondió: "{p.opciones[idx].texto}"</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          <button onClick={()=>{setPaso(1);setCatIdx(0);}} style={{width:"100%",padding:"16px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.teal},${T.tealDeep})`,color:T.white,fontWeight:700,fontSize:15,cursor:"pointer",boxShadow:`0 4px 16px ${T.teal}44`}}>
+            Comenzar entrevista →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Paso 1: Entrevista por categoría ─────────────────────────────
+  if(paso===1){
+    const catKey=catsSorted[catIdx]; // peor primero
+    const cm=CAT_META[catKey];
+    const pct=catScore(catKey);
+    const alertas=alertasPorCat(catKey);
+    const follows=FOLLOW_UPS[catKey]||[];
+    const total=catsSorted.length;
+    const calActual=cal[catKey+"_cal"]||null;
+    const notaActual=cal[catKey+"_nota"]||"";
+    const semData=SEMAFORO.find(s=>s.v===calActual);
+    const esUltima=catIdx===total-1;
+
+    return(
+      <div style={{minHeight:"100vh",background:T.soft,fontFamily:"'Helvetica Neue',Arial,sans-serif"}}>
+        <div style={{background:`linear-gradient(150deg,${T.tealDeep},${T.teal})`,padding:"20px 20px 0",color:T.white}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <button onClick={()=>catIdx>0?setCatIdx(i=>i-1):setPaso(0)} style={{background:"rgba(255,255,255,0.15)",border:"none",color:T.white,padding:"7px 16px",borderRadius:20,cursor:"pointer",fontSize:13}}>← Atrás</button>
+            <div style={{fontSize:13,fontWeight:700,opacity:0.85}}>{catIdx+1} / {total}</div>
+            <button onClick={guardar} style={{background:guardado?"rgba(110,231,183,0.4)":"rgba(255,255,255,0.15)",border:"none",color:T.white,padding:"7px 14px",borderRadius:20,cursor:"pointer",fontSize:13,fontWeight:700}}>{guardado?"✓":"💾"}</button>
+          </div>
+          {/* Progress dots */}
+          <div style={{display:"flex",gap:5,justifyContent:"center",marginBottom:12}}>
+            {catsSorted.map((_,i)=><div key={i} style={{width:i===catIdx?20:6,height:6,borderRadius:3,background:i<=catIdx?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.3)",transition:"width 0.3s"}}/>)}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+            <div style={{width:36,height:36,borderRadius:12,background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{cm.icon}</div>
+            <div>
+              <div style={{fontSize:16,fontWeight:700}}>{cm.label}</div>
+              {candidata.test_completado&&<div style={{fontSize:12,opacity:0.75}}>Test: {pct}% {alertas.length>0?`· 🚨 ${alertas.length} alerta${alertas.length>1?"s":""}`:"· Sin alertas"}</div>}
+            </div>
+          </div>
+          <svg viewBox="0 0 400 16" style={{display:"block",marginBottom:-1}}><path d="M0,8 C100,16 300,0 400,8 L400,16 L0,16 Z" fill={T.soft}/></svg>
+        </div>
+
+        <div style={{maxWidth:480,margin:"0 auto",padding:"18px 16px 40px"}}>
+          {/* Alertas de esta categoría */}
+          {candidata.test_completado&&alertas.length>0&&(
+            <div style={{background:"#fff7ed",borderRadius:16,padding:"16px",marginBottom:16,border:"1px solid #fed7aa"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#c2410c",letterSpacing:0.5,marginBottom:10}}>🎯 LO QUE DIJO EN EL TEST — EXPLORAR</div>
+              {alertas.map(p=>{
+                const r=resultado[p.id];const idx=r?.opcion??null;
+                return(
+                  <div key={p.id} style={{marginBottom:10,paddingBottom:10,borderBottom:"1px solid #fed7aa"}}>
+                    <div style={{fontSize:13,color:T.ink,lineHeight:1.45,marginBottom:5}}>{p.pregunta}</div>
+                    {idx!=null&&<div style={{fontSize:13,fontStyle:"italic",color:"#c2410c",fontWeight:600,padding:"6px 10px",background:"#fff",borderRadius:8,border:"1px solid #fca5a5"}}>"{p.opciones[idx].texto}"</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Preguntas de seguimiento */}
+          <div style={{background:T.white,borderRadius:16,padding:"16px",marginBottom:16,border:`1px solid ${T.border}`}}>
+            <div style={{fontSize:11,fontWeight:700,color:cm.color,letterSpacing:0.5,marginBottom:12}}>💬 PREGUNTA{follows.length>1?"S":""} PARA LA ENTREVISTA</div>
+            {follows.map((q,i)=>(
+              <div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:i<follows.length-1?`1px solid ${T.tealLight}`:"none"}}>
+                <div style={{width:22,height:22,borderRadius:8,background:cm.color+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:cm.color,flexShrink:0}}>{i+1}</div>
+                <span style={{fontSize:14,color:T.ink,lineHeight:1.55}}>{q}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Calificación de esta categoría */}
+          <div style={{background:semData?semData.bg:T.white,borderRadius:16,padding:"16px",marginBottom:16,border:`2px solid ${semData?semData.border+"66":T.border}`,transition:"all 0.2s"}}>
+            <div style={{fontSize:11,fontWeight:700,color:T.inkLight,letterSpacing:0.5,marginBottom:12}}>¿CÓMO RESPONDIÓ EN LA ENTREVISTA?</div>
+            <SemaforoBtn value={calActual} onChange={v=>setCatCal(catKey,v)}/>
+          </div>
+
+          {/* Nota de esta categoría */}
+          <div style={{background:T.white,borderRadius:16,padding:"16px",marginBottom:20,border:`1px solid ${T.border}`}}>
+            <div style={{fontSize:11,fontWeight:700,color:T.inkLight,letterSpacing:0.5,marginBottom:10}}>📝 NOTA (opcional)</div>
+            <textarea value={notaActual} onChange={e=>setCatNota(catKey,e.target.value)} rows={3} placeholder="Observación libre sobre esta área..."
+              style={{width:"100%",border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",fontSize:13,color:T.ink,resize:"none",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:T.soft}}/>
+          </div>
+
+          <button
+            onClick={()=>{if(esUltima)setPaso(2);else setCatIdx(i=>i+1);}}
+            disabled={!calActual}
+            style={{width:"100%",padding:"16px",borderRadius:14,border:"none",background:calActual?`linear-gradient(135deg,${T.teal},${T.tealDeep})`:"#e5e7eb",color:calActual?T.white:"#9ca3af",fontWeight:700,fontSize:15,cursor:calActual?"pointer":"not-allowed",boxShadow:calActual?`0 4px 16px ${T.teal}44`:"none",transition:"all 0.2s"}}>
+            {esUltima?"Ver veredicto →":`Siguiente: ${CAT_META[catsSorted[catIdx+1]]?.label||""} →`}
+          </button>
+          {!calActual&&<div style={{textAlign:"center",fontSize:12,color:T.inkLight,marginTop:8}}>Selecciona ✅ ⚠️ o 🚨 para continuar</div>}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Paso 2: Veredicto final ───────────────────────────────────────
+  const veredictoGlobal=puntajeEntrevista();
+  const vData=SEMAFORO.find(s=>s.v===veredictoGlobal);
   return(
     <div style={{minHeight:"100vh",background:T.soft,fontFamily:"'Helvetica Neue',Arial,sans-serif"}}>
-      {/* Header */}
       <div style={{background:`linear-gradient(150deg,${T.tealDeep},${T.teal})`,padding:"20px 20px 0",color:T.white}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-          <button onClick={onBack} style={{background:"rgba(255,255,255,0.15)",border:"none",color:T.white,padding:"7px 16px",borderRadius:20,cursor:"pointer",fontSize:13}}>← Volver</button>
-          <div style={{fontSize:13,fontWeight:700,opacity:0.85}}>Guía de Entrevista</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+          <button onClick={()=>setPaso(1)} style={{background:"rgba(255,255,255,0.15)",border:"none",color:T.white,padding:"7px 16px",borderRadius:20,cursor:"pointer",fontSize:13}}>← Revisar</button>
+          <div style={{fontSize:13,fontWeight:700,opacity:0.85}}>Veredicto Final</div>
           <button onClick={guardar} style={{background:guardado?"rgba(110,231,183,0.4)":"rgba(255,255,255,0.15)",border:"none",color:T.white,padding:"7px 16px",borderRadius:20,cursor:"pointer",fontSize:13,fontWeight:700}}>{guardado?"✓ Guardado":"💾 Guardar"}</button>
         </div>
-        <div style={{marginBottom:12}}><div style={{fontSize:18,fontWeight:700}}>{candidata.nombre}</div><div style={{fontSize:12,opacity:0.7}}>#{candidata.codigo_seguimiento}</div></div>
-        {/* Summary chips */}
-        <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-          {candidata.test_completado&&<div style={{background:"rgba(110,231,183,0.2)",border:"1px solid rgba(110,231,183,0.4)",borderRadius:10,padding:"6px 12px",fontSize:12,color:"#6ee7b7",fontWeight:700}}>Test {testScore()}%</div>}
-          <div style={{background:"rgba(255,255,255,0.12)",borderRadius:10,padding:"6px 12px",fontSize:12,color:"rgba(255,255,255,0.85)"}}>✅ {countSem("bien")} bien &nbsp; ⚠️ {countSem("explorar")} explorar &nbsp; 🚨 {countSem("alerta")} alerta</div>
-          <div style={{background:"rgba(255,255,255,0.10)",borderRadius:10,padding:"6px 12px",fontSize:12,color:"rgba(255,255,255,0.6)"}}>{totalCalificadas}/{TEST_PREGUNTAS.length} calificadas</div>
-        </div>
-        {!candidata.test_completado&&<div style={{background:"rgba(251,191,36,0.2)",border:"1px solid rgba(251,191,36,0.4)",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:13,color:"#fde68a"}}>⚠️ La candidata no completó el test previo.</div>}
+        <div style={{marginBottom:6}}><div style={{fontSize:18,fontWeight:700}}>{candidata.nombre}</div></div>
+        <div style={{fontSize:12,opacity:0.6,marginBottom:16}}>PASO 3 DE 3 — Evaluación de la entrevista</div>
         <svg viewBox="0 0 400 16" style={{display:"block",marginBottom:-1}}><path d="M0,8 C100,16 300,0 400,8 L400,16 L0,16 Z" fill={T.soft}/></svg>
       </div>
 
-      <div style={{maxWidth:480,margin:"0 auto",padding:"16px 16px 80px"}}>
-        {/* Category tabs */}
-        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:16}}>
-          {catKeys.map(k=>{
-            const cm=CAT_META[k];const actv=catActiva===k;
-            const bien=catSemCount(k,"bien");const exp=catSemCount(k,"explorar");const alrt=catSemCount(k,"alerta");
-            const hasData=bien+exp+alrt>0;
-            return(
-              <button key={k} onClick={()=>setCatActiva(k)} style={{padding:"8px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",border:`1.5px solid ${actv?cm.color:T.border}`,background:actv?cm.color:T.white,color:actv?T.white:cm.color,flexShrink:0,position:"relative"}}>
-                {cm.icon} {cm.label.split(" ")[0]}
-                {hasData&&<span style={{marginLeft:4,fontSize:10,opacity:0.85}}>{alrt>0?"🚨":exp>0?"⚠️":"✅"}</span>}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Category section */}
-        <div style={{marginBottom:6,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:20}}>{cat.icon}</span>
-            <div>
-              <div style={{fontWeight:700,fontSize:15,color:T.ink}}>{cat.label}</div>
-              {candidata.test_completado&&catScores[catActiva]!=null&&<div style={{fontSize:12,color:T.inkLight}}>Test: <span style={{fontWeight:700,color:scoreColor(Math.round((catScores[catActiva]||0)*20))}}>{Math.round((catScores[catActiva]||0)*20)}%</span></div>}
-            </div>
+      <div style={{maxWidth:480,margin:"0 auto",padding:"20px 16px 40px"}}>
+        {/* Veredicto global */}
+        {vData&&(
+          <div style={{background:vData.bg,borderRadius:18,padding:"20px",marginBottom:18,border:`2px solid ${vData.border}`,textAlign:"center"}}>
+            <div style={{fontSize:40,marginBottom:6}}>{vData.emoji}</div>
+            <div style={{fontSize:22,fontWeight:800,color:vData.text}}>Perfil general: {vData.label}</div>
+            <div style={{fontSize:13,color:vData.text,opacity:0.8,marginTop:6}}>Basado en el promedio de las 6 categorías</div>
           </div>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontSize:10,color:T.inkLight,marginBottom:4}}>CATEGORÍA</div>
-            <SemaforoBtn value={cal[`${catActiva}_final`]||null} onChange={v=>setCatFinal(catActiva,v)}/>
-          </div>
-        </div>
+        )}
 
-        {/* Per-question cards */}
-        <div style={{marginBottom:14}}>
-          {pregsCat.map((p,qi)=>{
-            const r=resultado[p.id];const idx=r?.opcion??null;const pts=r?.puntos??0;
-            const ptsColor=pts>=4?T.success:pts>=3?T.teal:pts>=2?T.gold:T.warn;
-            const semVal=cal[p.id]?.semaforo||null;
-            const notaVal=cal[p.id]?.nota||"";
-            const showNota=notaExpandida[p.id];
-            const semData=SEMAFORO.find(s=>s.v===semVal);
-            return(
-              <div key={p.id} style={{background:T.white,borderRadius:16,marginBottom:12,border:`1.5px solid ${semData?semData.border+"55":"#e5e7eb"}`,overflow:"hidden",boxShadow:semVal?"0 2px 10px rgba(0,0,0,0.05)":"none"}}>
-                {/* Question header */}
-                <div style={{padding:"14px 16px 0"}}>
-                  <div style={{fontSize:11,color:cat.color,fontWeight:700,letterSpacing:0.4,marginBottom:6}}>PREGUNTA {qi+1}</div>
-                  <p style={{margin:"0 0 10px",fontSize:14,color:T.ink,lineHeight:1.55,fontWeight:500}}>{p.pregunta}</p>
-                </div>
-                {/* Candidate's answer (if test completed) */}
-                {candidata.test_completado&&<div style={{margin:"0 16px 10px",padding:"10px 12px",borderRadius:10,background:pts<=1?"#fef2f2":T.tealLight,border:`1px solid ${pts<=1?"#fca5a5":"#99f6e4"}`}}>
-                  <div style={{fontSize:10,color:T.inkLight,fontWeight:700,letterSpacing:0.4,marginBottom:4}}>RESPONDIÓ</div>
-                  {idx!=null
-                    ?<div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8}}>
-                        <div style={{fontSize:13,color:T.ink,lineHeight:1.45,flex:1,fontStyle:"italic"}}>"{p.opciones[idx].texto}"</div>
-                        <span style={{fontSize:11,fontWeight:700,color:ptsColor,background:ptsColor+"15",border:`1px solid ${ptsColor}33`,padding:"2px 7px",borderRadius:8,whiteSpace:"nowrap",flexShrink:0}}>{pts}/5</span>
-                      </div>
-                    :<div style={{fontSize:13,color:T.inkLight,fontStyle:"italic"}}>Sin responder</div>}
-                </div>}
-                {/* Semaphore + note toggle */}
-                <div style={{padding:"8px 16px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,borderTop:`1px solid ${T.tealLight}`}}>
-                  <SemaforoBtn value={semVal} onChange={v=>setPregSem(p.id,v)}/>
-                  <button onClick={()=>setNotaExpandida(n=>({...n,[p.id]:!n[p.id]}))}
-                    style={{background:"transparent",border:`1px solid ${showNota||notaVal?T.teal:T.border}`,borderRadius:8,padding:"4px 10px",fontSize:12,color:showNota||notaVal?T.teal:T.inkLight,cursor:"pointer",fontWeight:600,flexShrink:0}}>
-                    ✎ {notaVal?"Ver nota":"Nota"}
-                  </button>
-                </div>
-                {(showNota||notaVal)&&<div style={{padding:"0 16px 14px"}}>
-                  <textarea value={notaVal} onChange={e=>setPregNota(p.id,e.target.value)} placeholder="Observación sobre esta respuesta..." rows={2}
-                    style={{width:"100%",border:`1px solid ${T.border}`,borderRadius:10,padding:"8px 12px",fontSize:13,color:T.ink,resize:"vertical",outline:"none",fontFamily:"inherit",boxSizing:"border-box",background:T.soft}}/>
-                </div>}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Follow-up questions */}
-        <div style={{background:T.white,borderRadius:16,padding:"16px 18px",marginBottom:14,border:`1px solid ${T.border}`}}>
-          <div style={{fontSize:11,color:cat.color,fontWeight:700,letterSpacing:0.5,marginBottom:10}}>💬 PREGUNTAS DE SEGUIMIENTO — {cat.label}</div>
-          {followUps.map((q,i)=>(
-            <div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:i<followUps.length-1?`1px solid ${T.tealLight}`:"none"}}>
-              <span style={{fontSize:15,color:cat.color,flexShrink:0,marginTop:1}}>→</span>
-              <span style={{fontSize:13,color:T.ink,lineHeight:1.55}}>{q}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Category summary */}
-        <div style={{background:T.white,borderRadius:16,padding:"16px 18px",marginBottom:14,border:`1px solid ${T.border}`}}>
-          <div style={{fontSize:11,color:T.tealDark,fontWeight:700,letterSpacing:0.5,marginBottom:12}}>📊 RESUMEN POR CATEGORÍA</div>
+        {/* Tabla de resultados */}
+        <div style={{background:T.white,borderRadius:18,padding:"18px",marginBottom:16,border:`1px solid ${T.border}`}}>
+          <div style={{fontSize:11,fontWeight:700,color:T.inkLight,letterSpacing:0.5,marginBottom:14}}>RESUMEN POR CATEGORÍA</div>
           {catKeys.map(k=>{
-            const cm=CAT_META[k];const testVal=candidata.test_completado?(catScores[k]||0)*20:null;
-            const bien=catSemCount(k,"bien");const exp=catSemCount(k,"explorar");const alrt=catSemCount(k,"alerta");
-            const finalSem=cal[`${k}_final`];const finalData=SEMAFORO.find(s=>s.v===finalSem);
+            const cm=CAT_META[k];
+            const testPct=candidata.test_completado?catScore(k):null;
+            const entV=cal[k+"_cal"]||null;
+            const eData=SEMAFORO.find(s=>s.v===entV);
+            const nota=cal[k+"_nota"]||"";
             return(
-              <div key={k} style={{marginBottom:10,padding:"10px 12px",borderRadius:10,border:`1px solid ${finalData?finalData.border+"44":"#e5e7eb"}`,background:finalData?finalData.bg+"66":"transparent"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontSize:13,fontWeight:600,color:T.ink}}>{cm.icon} {cm.label}</div>
-                  <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                    {testVal!=null&&<span style={{fontSize:11,color:scoreColor(testVal),fontWeight:700}}>{Math.round(testVal)}%</span>}
-                    {finalData&&<span style={{fontSize:12,padding:"2px 8px",borderRadius:10,background:finalData.bg,border:`1px solid ${finalData.border}`,color:finalData.text,fontWeight:700}}>{finalData.emoji} {finalData.label}</span>}
+              <div key={k} style={{marginBottom:12,paddingBottom:12,borderBottom:`1px solid ${T.tealLight}`}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:nota?6:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:16}}>{cm.icon}</span>
+                    <span style={{fontSize:13,fontWeight:600,color:T.ink}}>{cm.label}</span>
+                  </div>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    {testPct!=null&&<span style={{fontSize:11,fontWeight:700,color:scoreColor(testPct),background:scoreColor(testPct)+"15",padding:"2px 7px",borderRadius:8}}>Test {testPct}%</span>}
+                    {eData&&<span style={{fontSize:12,fontWeight:700,padding:"3px 10px",borderRadius:10,background:eData.bg,border:`1px solid ${eData.border}`,color:eData.text}}>{eData.emoji} {eData.label}</span>}
+                    {!eData&&<button onClick={()=>{setPaso(1);setCatIdx(catsSorted.indexOf(k));}} style={{fontSize:11,color:T.inkLight,background:"transparent",border:`1px solid ${T.border}`,borderRadius:10,padding:"2px 8px",cursor:"pointer"}}>+ calificar</button>}
                   </div>
                 </div>
-                {(bien+exp+alrt)>0&&<div style={{display:"flex",gap:6,marginTop:6}}>
-                  {bien>0&&<span style={{fontSize:11,color:"#15803d"}}>✅ {bien}</span>}
-                  {exp>0&&<span style={{fontSize:11,color:"#a16207"}}>⚠️ {exp}</span>}
-                  {alrt>0&&<span style={{fontSize:11,color:"#b91c1c"}}>🚨 {alrt}</span>}
-                </div>}
+                {nota&&<div style={{fontSize:12,color:T.inkLight,fontStyle:"italic",paddingLeft:24,lineHeight:1.45}}>{nota}</div>}
               </div>
             );
           })}
         </div>
 
-        {/* General notes */}
-        <div style={{background:T.white,borderRadius:16,padding:"16px 18px",marginBottom:14,border:`1px solid ${T.border}`}}>
-          <div style={{fontSize:11,color:T.tealDark,fontWeight:700,letterSpacing:0.5,marginBottom:12}}>📝 NOTAS GENERALES</div>
-          <textarea style={{...iS,height:120,resize:"vertical",fontSize:13}} placeholder="Impresiones generales, observaciones clave, próximos pasos..." value={notas} onChange={e=>setNotas(e.target.value)}/>
+        {/* Nota general */}
+        <div style={{background:T.white,borderRadius:18,padding:"18px",marginBottom:20,border:`1px solid ${T.border}`}}>
+          <div style={{fontSize:11,fontWeight:700,color:T.inkLight,letterSpacing:0.5,marginBottom:12}}>📝 NOTAS GENERALES DE LA ENTREVISTA</div>
+          <textarea style={{...iS,height:120,resize:"vertical",fontSize:13}} placeholder="Impresión general, lenguaje no verbal, próximos pasos..." value={notaGral} onChange={e=>setNotaGral(e.target.value)}/>
         </div>
 
         <button onClick={guardar} style={{width:"100%",padding:"16px",borderRadius:14,border:"none",background:guardado?T.success:`linear-gradient(135deg,${T.teal},${T.tealDeep})`,color:T.white,fontWeight:700,fontSize:15,cursor:"pointer",boxShadow:`0 4px 16px ${T.teal}44`,transition:"background 0.3s"}}>
-          {guardado?"✓ Guardado":"💾 Guardar evaluación de entrevista"}
+          {guardado?"✓ Evaluación guardada":"💾 Guardar evaluación"}
+        </button>
+        <button onClick={onBack} style={{width:"100%",padding:"14px",borderRadius:14,border:`1.5px solid ${T.border}`,background:"transparent",color:T.inkLight,fontWeight:600,fontSize:14,cursor:"pointer",marginTop:10}}>
+          Volver al perfil de la candidata
         </button>
       </div>
     </div>
