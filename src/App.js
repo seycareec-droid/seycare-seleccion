@@ -310,6 +310,268 @@ function CandidateForm(){
   );
 }
 
+// ── TEST SITUACIONAL ─────────────────────────────────────────
+const TEST_PREGUNTAS = [
+  // LEALTAD / CONFIDENCIALIDAD
+  {id:"lc1",categoria:"lealtad",pregunta:"Una clienta te pide que la atiendas en tu casa porque sería más cómodo y barato para las dos. ¿Qué harías?",opciones:[{texto:"Le explico que no puedo atenderla fuera del salón y la invito a venir a Seycare.",puntos:5},{texto:"Le digo que lo pensaré y le aviso después.",puntos:2},{texto:"Acepto, siempre que sea solo esa vez.",puntos:0},{texto:"Acepto si ella me asegura que no lo va a decir.",puntos:0}]},
+  {id:"lc2",categoria:"lealtad",pregunta:"Una amiga te dice que en otro salón te pagarían más. Llevas 3 meses en Seycare y te sientes cómoda. ¿Qué haces?",opciones:[{texto:"Evalúo ambas opciones con calma y, si me voy, aviso con tiempo y de buenas maneras.",puntos:4},{texto:"Me quedo porque valoro el ambiente, aunque la oferta sea tentadora.",puntos:5},{texto:"Me voy sin decir nada para no tener problemas.",puntos:0},{texto:"Acepto en secreto y trabajo en los dos lugares al mismo tiempo.",puntos:0}]},
+  {id:"lc3",categoria:"lealtad",pregunta:"Escuchas una conversación entre dos compañeras sobre un problema personal de una clienta. ¿Qué haces?",opciones:[{texto:"Me retiro discretamente y no comento eso con nadie.",puntos:5},{texto:"Lo cuento solo a mi mejor amiga porque sé que no va a decir nada.",puntos:0},{texto:"Me quedo escuchando pero prometo guardarlo para mí.",puntos:2},{texto:"Lo publico en mis historias de forma genérica.",puntos:0}]},
+  // HONESTIDAD / TRANSPARENCIA
+  {id:"ht1",categoria:"honestidad",pregunta:"Cometes un error en el diseño de una uña y la clienta aún no lo ha notado. ¿Qué haces?",opciones:[{texto:"Se lo digo de inmediato y corrijo el error sin costo adicional.",puntos:5},{texto:"Espero a ver si ella lo nota.",puntos:1},{texto:"Distraigo su atención para que no lo vea.",puntos:0},{texto:"Se lo digo pero le cobro por la corrección.",puntos:2}]},
+  {id:"ht2",categoria:"honestidad",pregunta:"Al cerrar caja notas que hay $5 de más que no cuadran. ¿Qué haces?",opciones:[{texto:"Los reporto inmediatamente a la encargada.",puntos:5},{texto:"Los guardo y espero a ver si alguien los reclama.",puntos:0},{texto:"Los dejo en la caja y no digo nada.",puntos:2},{texto:"Me los llevo porque «igual nadie va a notar».",puntos:0}]},
+  {id:"ht3",categoria:"honestidad",pregunta:"Una clienta pregunta si un producto que usas es de marca. La verdad es que es genérico. ¿Qué haces?",opciones:[{texto:"Le digo la verdad y explico que es de buena calidad aunque no sea de marca.",puntos:5},{texto:"Cambio el tema para no responder.",puntos:1},{texto:"Le digo que sí es de marca para no perder la clienta.",puntos:0},{texto:"Le digo que no lo sé.",puntos:2}]},
+  // PUNTUALIDAD / RESPONSABILIDAD
+  {id:"pr1",categoria:"puntualidad",pregunta:"Tienes una clienta a las 9:00 a.m. y vas a llegar 15 minutos tarde. ¿Qué haces?",opciones:[{texto:"Aviso con anticipación, me disculpo y organizo para que no vuelva a pasar.",puntos:5},{texto:"Llego tarde y me disculpo al entrar.",puntos:2},{texto:"Le digo que el tráfico estuvo terrible y ya.",puntos:1},{texto:"No digo nada y espero que no se moleste.",puntos:0}]},
+  {id:"pr2",categoria:"puntualidad",pregunta:"Tienes un compromiso personal el sábado pero tu turno está asignado. ¿Qué haces?",opciones:[{texto:"Aviso con días de anticipación y busco a alguien que me cubra.",puntos:5},{texto:"Aviso el mismo día que no puedo ir.",puntos:1},{texto:"Simplemente no llego.",puntos:0},{texto:"Voy aunque esté cansada porque el trabajo es primero.",puntos:4}]},
+  {id:"pr3",categoria:"puntualidad",pregunta:"Terminaste todos tus clientes del día con una hora de sobra. ¿Qué haces?",opciones:[{texto:"Organizo mi estación, ayudo en lo que se necesite o practico nuevas técnicas.",puntos:5},{texto:"Me siento a revisar el celular hasta que termine el turno.",puntos:1},{texto:"Le pido a la encargada que me deje salir antes.",puntos:2},{texto:"Aprovecho para chatear con compañeras.",puntos:1}]},
+  // ACTITUD DE SERVICIO
+  {id:"as1",categoria:"actitud",pregunta:"Una clienta llega de mal humor y empieza a quejarse de todo, incluyendo del trabajo de otra manicurista. ¿Qué haces?",opciones:[{texto:"La escucho con paciencia, no me uno a las críticas y ofrezco lo mejor de mí.",puntos:5},{texto:"Le doy la razón en todo para que se calme.",puntos:2},{texto:"Le digo que tiene razón y que esa compañera siempre hace mal su trabajo.",puntos:0},{texto:"Me molesto internamente pero no digo nada.",puntos:3}]},
+  {id:"as2",categoria:"actitud",pregunta:"Una clienta pide un diseño muy complicado que nunca has hecho. ¿Qué le dices?",opciones:[{texto:"Le digo la verdad, le muestro diseños que sí domino y ofrezco intentarlo si ella entiende que puede quedar diferente.",puntos:5},{texto:"Acepto sin mencionar que no lo he hecho y espero que quede bien.",puntos:1},{texto:"Le digo que no puedo hacerlo y punto.",puntos:2},{texto:"Le cobro extra porque es difícil y lo intento.",puntos:2}]},
+  {id:"as3",categoria:"actitud",pregunta:"Hay una clienta que siempre llega tarde, habla mucho y hace que todo se demore. ¿Qué haces?",opciones:[{texto:"La atiendo con la misma amabilidad de siempre, pero con la encargada conversamos sobre sus horarios.",puntos:5},{texto:"Le demuestro con mi actitud que estoy incómoda.",puntos:1},{texto:"Le digo directamente que está abusando.",puntos:1},{texto:"La atiendo rápido para terminar cuanto antes aunque el trabajo no quede perfecto.",puntos:0}]},
+  // DISPOSICIÓN A CRECER
+  {id:"dc1",categoria:"crecimiento",pregunta:"Seycare organiza una capacitación un sábado. No es obligatoria pero les piden asistir. ¿Qué haces?",opciones:[{texto:"Voy porque sé que aprender me beneficia a mí y al equipo.",puntos:5},{texto:"Voy solo si me pagan ese día.",puntos:1},{texto:"No voy porque es mi día libre.",puntos:0},{texto:"Voy si mis compañeras también van.",puntos:2}]},
+  {id:"dc2",categoria:"crecimiento",pregunta:"Tu supervisora te hace una observación sobre cómo haces una técnica. Llevas tiempo haciéndolo así y sientes que funciona. ¿Cómo reaccionas?",opciones:[{texto:"Escucho la observación, la tomo en cuenta y lo intento de la manera que me sugieren.",puntos:5},{texto:"Le explico por qué lo hago así y negociamos.",puntos:4},{texto:"Asiento pero sigo igual.",puntos:1},{texto:"Me molesta que me corrijan delante de alguien.",puntos:0}]},
+  {id:"dc3",categoria:"crecimiento",pregunta:"¿Dónde te ves en 2 años dentro de la industria de la belleza?",opciones:[{texto:"Quiero especializarme en más técnicas y quizás liderar un equipo.",puntos:5},{texto:"Quiero tener suficientes clientas fijas para vivir bien.",puntos:4},{texto:"No lo he pensado mucho.",puntos:1},{texto:"Quiero tener mi propio salón independiente lo antes posible.",puntos:2}]},
+  // FIT CULTURAL SEYCARE
+  {id:"fc1",categoria:"fit",pregunta:"Seycare tiene una regla: antes de salir, todas revisan que el área de trabajo esté perfecta. ¿Cómo te sientes con eso?",opciones:[{texto:"Me parece bien, es parte del trabajo y da buena imagen.",puntos:5},{texto:"Está bien pero que sea rápido.",puntos:3},{texto:"Me parece innecesario si ya atendí a mis clientas.",puntos:1},{texto:"Depende de cómo esté el día.",puntos:2}]},
+  {id:"fc2",categoria:"fit",pregunta:"Una compañera tiene un día muy difícil y su ánimo está afectando el ambiente. ¿Qué haces?",opciones:[{texto:"Le pregunto discretamente si está bien y le ofrezco apoyo sin descuidar mis clientas.",puntos:5},{texto:"No me meto, es su problema.",puntos:1},{texto:"Le digo que no puede mostrar eso en el trabajo.",puntos:2},{texto:"Le cuento a la encargada para que ella lo maneje.",puntos:3}]},
+  {id:"fc3",categoria:"fit",pregunta:"Una clienta te pregunta si puede seguirte en redes sociales y trabajar contigo de forma independiente. ¿Qué respondes?",opciones:[{texto:"Con gusto puedes seguirme, pero mi trabajo se hace aquí en Seycare. Aquí te atiendo con todo.",puntos:5},{texto:"Le doy mi número personal para coordinar.",puntos:0},{texto:"Le digo que hablaré con mi jefa antes de responder.",puntos:3},{texto:"Acepto porque igual no creo que sea un problema.",puntos:0}]},
+];
+
+const CAT_META = {
+  lealtad:     {label:"Lealtad y confidencialidad",  icon:"🔒", color:"#7c3aed"},
+  honestidad:  {label:"Honestidad y transparencia",   icon:"🤝", color:"#0891b2"},
+  puntualidad: {label:"Puntualidad y responsabilidad",icon:"⏰", color:"#059669"},
+  actitud:     {label:"Actitud de servicio",           icon:"✨", color:"#d97706"},
+  crecimiento: {label:"Disposición a crecer",          icon:"🌱", color:"#16a34a"},
+  fit:         {label:"Fit cultural Seycare",          icon:"💎", color:"#db2777"},
+};
+
+const FOLLOW_UPS = {
+  lealtad:["¿Alguna vez tuviste que guardar información sensible en un trabajo anterior? ¿Cómo lo manejaste?","¿Qué harías si una compañera te pidiera que cubrieras algo que te parece incorrecto?","Si una clienta te pide descuento y saltar el sistema, ¿cómo respondes?"],
+  honestidad:["Cuéntame de una situación donde tuviste que decir algo difícil pero necesario.","¿Cómo manejarías un error que cometiste y que afectó a una clienta?","Si olvidaras registrar un servicio, ¿qué harías?"],
+  puntualidad:["¿Cómo organizas tu tiempo para cumplir con todos tus compromisos?","¿Qué haces cuando el día se pone más pesado de lo esperado?","¿Has trabajado con turnos fijos antes? ¿Cómo te fue?"],
+  actitud:["Cuéntame de una clienta difícil que hayas tenido. ¿Cómo lo resolviste?","¿Cómo te sientes cuando recibes críticas de tu trabajo?","¿Qué haces para que una clienta nueva se sienta bienvenida?"],
+  crecimiento:["¿Cuál fue la última técnica o habilidad nueva que aprendiste?","¿Qué harías si vieras que en otro salón hacen algo mejor que aquí?","¿Cómo reaccionas cuando algo no te sale bien a la primera?"],
+  fit:["¿Qué esperas de la cultura y ambiente de trabajo ideal para ti?","¿Cómo manejarías un conflicto con una compañera?","¿Qué significa para ti trabajar en equipo?"],
+};
+
+function CandidateTest({candidataId,candidataNombre,onComplete}){
+  const [respuestas,setRespuestas]=useState({});
+  const [pregIdx,setPregIdx]=useState(0);
+  const [fase,setFase]=useState("intro");
+  const [guardando,setGuardando]=useState(false);
+  const total=TEST_PREGUNTAS.length;
+  const preg=TEST_PREGUNTAS[pregIdx];
+  const respondidas=Object.keys(respuestas).length;
+
+  const seleccionar=(pregId,opIdx)=>{
+    setRespuestas(r=>({...r,[pregId]:opIdx}));
+    setTimeout(()=>{if(pregIdx<total-1)setPregIdx(i=>i+1);},300);
+  };
+
+  const finalizar=async()=>{
+    setGuardando(true);
+    const resultado={};
+    TEST_PREGUNTAS.forEach(p=>{const idx=respuestas[p.id];resultado[p.id]={categoria:p.categoria,opcion:idx??null,puntos:idx!=null?p.opciones[idx].puntos:0};});
+    const catScores={};
+    Object.keys(CAT_META).forEach(catKey=>{
+      const pregsInCat=TEST_PREGUNTAS.filter(p=>p.categoria===catKey);
+      const suma=pregsInCat.reduce((acc,p)=>acc+(resultado[p.id]?.puntos||0),0);
+      catScores[catKey]=pregsInCat.length>0?+(suma/pregsInCat.length).toFixed(2):0;
+    });
+    resultado._catScores=catScores;
+    try{await supabase.from("candidatas").update({resultado_test:resultado,test_completado:true}).eq("id",candidataId);}catch(e){console.error(e);}
+    setGuardando(false);setFase("gracias");if(onComplete)onComplete();
+  };
+
+  if(fase==="intro")return(
+    <div style={{minHeight:"100vh",background:T.soft,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'Helvetica Neue',Arial,sans-serif"}}>
+      <div style={{maxWidth:400,width:"100%",textAlign:"center"}}>
+        <img src={ICON_SRC} alt="Seycare" style={{width:64,marginBottom:20}}/>
+        <h2 style={{fontSize:24,fontWeight:700,color:T.ink,margin:"0 0 12px"}}>Evaluación Seycare</h2>
+        <p style={{color:T.inkLight,lineHeight:1.7,fontSize:15,margin:"0 0 8px"}}>Hola <strong>{candidataNombre}</strong> 👋</p>
+        <p style={{color:T.inkLight,lineHeight:1.7,fontSize:14,margin:"0 0 28px"}}>A continuación encontrarás {total} situaciones breves. No hay respuestas correctas o incorrectas — queremos conocer cómo piensas y actúas. Sé honesta, tómate tu tiempo.</p>
+        <div style={{background:T.white,borderRadius:16,padding:"16px 20px",marginBottom:28,border:`1px solid ${T.border}`,textAlign:"left"}}>
+          {[`📱 ${total} preguntas rápidas`,`⏱️ Aprox. 5-7 minutos`,`🔒 Tus respuestas son confidenciales`].map(t=>(<div key={t} style={{padding:"8px 0",fontSize:14,color:T.ink,borderBottom:`1px solid ${T.tealLight}`}}>{t}</div>))}
+        </div>
+        <button onClick={()=>setFase("test")} style={{width:"100%",padding:"16px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.teal},${T.tealDeep})`,color:T.white,fontWeight:700,fontSize:16,cursor:"pointer",boxShadow:`0 4px 16px ${T.teal}55`}}>Comenzar evaluación →</button>
+      </div>
+    </div>
+  );
+
+  if(fase==="gracias")return(
+    <div style={{minHeight:"100vh",background:T.soft,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'Helvetica Neue',Arial,sans-serif"}}>
+      <div style={{maxWidth:380,width:"100%",textAlign:"center"}}>
+        <div style={{fontSize:64,marginBottom:16}}>💅</div>
+        <h2 style={{fontSize:26,fontWeight:700,color:T.ink,margin:"0 0 12px"}}>¡Gracias, {candidataNombre}!</h2>
+        <p style={{color:T.inkLight,lineHeight:1.7,fontSize:15,margin:"0 0 24px"}}>Completaste la evaluación. Ahora devuélvele el iPad a Andrés para continuar con la entrevista.</p>
+        <div style={{background:`linear-gradient(135deg,${T.teal},${T.tealDeep})`,borderRadius:16,padding:"20px",color:T.white,marginBottom:20}}>
+          <p style={{margin:0,fontSize:14,lineHeight:1.6,fontWeight:500}}>🌊 Gracias por tu tiempo y honestidad. Valoramos mucho a las personas que se conocen a sí mismas. ¡Mucho éxito!</p>
+        </div>
+        <img src={LOGO_SRC} alt="Seycare Nails" style={{height:32,opacity:0.4}}/>
+      </div>
+    </div>
+  );
+
+  const pct=Math.round((respondidas/total)*100);
+  const optSel=respuestas[preg.id]??null;
+  const cat=CAT_META[preg.categoria];
+
+  return(
+    <div style={{minHeight:"100vh",background:T.soft,fontFamily:"'Helvetica Neue',Arial,sans-serif"}}>
+      <div style={{background:`linear-gradient(150deg,${T.tealDeep},${T.teal})`,padding:"20px 20px 0",color:T.white}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
+          <img src={ICON_SRC} alt="Seycare" style={{width:32,filter:"brightness(0) invert(1)"}}/>
+          <div style={{fontSize:13,fontWeight:700,opacity:0.85}}>Evaluación Seycare Nails®</div>
+          <div style={{marginLeft:"auto",fontSize:13,fontWeight:700}}>{respondidas}/{total}</div>
+        </div>
+        <div style={{height:4,background:"rgba(255,255,255,0.2)",borderRadius:2,overflow:"hidden",marginBottom:0}}>
+          <div style={{width:`${pct}%`,height:"100%",background:T.white,borderRadius:2,transition:"width 0.4s"}}/>
+        </div>
+        <svg viewBox="0 0 400 16" style={{display:"block",marginBottom:-1}}><path d="M0,8 C100,16 300,0 400,8 L400,16 L0,16 Z" fill={T.soft}/></svg>
+      </div>
+      <div style={{maxWidth:480,margin:"0 auto",padding:"20px 16px 80px"}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"4px 12px",borderRadius:20,background:cat.color+"18",border:`1px solid ${cat.color}33`,marginBottom:16}}>
+          <span>{cat.icon}</span>
+          <span style={{fontSize:11,fontWeight:700,color:cat.color,letterSpacing:0.5}}>{cat.label.toUpperCase()}</span>
+        </div>
+        <div style={{background:T.white,borderRadius:18,padding:"24px 20px",marginBottom:20,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
+          <div style={{fontSize:12,color:T.inkLight,marginBottom:10,fontWeight:700}}>PREGUNTA {pregIdx+1} DE {total}</div>
+          <p style={{fontSize:17,color:T.ink,lineHeight:1.6,margin:0,fontWeight:500}}>{preg.pregunta}</p>
+        </div>
+        <div style={{display:"grid",gap:10}}>
+          {preg.opciones.map((op,idx)=>{
+            const sel=optSel===idx;
+            return(<button key={idx} onClick={()=>seleccionar(preg.id,idx)} style={{padding:"16px 18px",borderRadius:14,border:`2px solid ${sel?T.teal:T.border}`,background:sel?T.teal:T.white,color:sel?T.white:T.ink,textAlign:"left",fontSize:14,lineHeight:1.5,cursor:"pointer",fontWeight:sel?600:400,transition:"all 0.15s",boxShadow:sel?`0 4px 16px ${T.teal}44`:"none"}}><span style={{fontWeight:700,marginRight:8,opacity:0.5}}>{String.fromCharCode(65+idx)}.</span>{op.texto}</button>);
+          })}
+        </div>
+        <div style={{display:"flex",gap:12,marginTop:24}}>
+          {pregIdx>0&&<button onClick={()=>setPregIdx(i=>i-1)} style={{padding:"12px 20px",borderRadius:12,border:`1.5px solid ${T.border}`,background:T.white,color:T.inkLight,fontWeight:700,fontSize:14,cursor:"pointer"}}>← Anterior</button>}
+          {respondidas===total&&<button onClick={finalizar} disabled={guardando} style={{flex:1,padding:"14px",borderRadius:12,border:"none",background:`linear-gradient(135deg,${T.teal},${T.tealDeep})`,color:T.white,fontWeight:700,fontSize:15,cursor:guardando?"not-allowed":"pointer",boxShadow:`0 4px 16px ${T.teal}55`}}>{guardando?"Guardando...":"✓ Finalizar evaluación"}</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InterviewGuide({candidata,onBack,onSave}){
+  const resultado=candidata.resultado_test||{};
+  const catScores=resultado._catScores||{};
+  const [entrevistaCal,setEntrevistaCal]=useState(candidata.entrevista_cal||{});
+  const [notas,setNotas]=useState(candidata.entrevista_notas||"");
+  const [guardado,setGuardado]=useState(false);
+  const [catActiva,setCatActiva]=useState(Object.keys(CAT_META)[0]);
+
+  const guardar=async()=>{
+    await supabase.from("candidatas").update({entrevista_cal:entrevistaCal,entrevista_notas:notas}).eq("id",candidata.id);
+    setGuardado(true);setTimeout(()=>setGuardado(false),2000);
+    if(onSave)onSave({entrevista_cal:entrevistaCal,entrevista_notas:notas});
+  };
+
+  const puntajeEntrevista=()=>{const vals=Object.values(entrevistaCal).filter(v=>v>0);if(!vals.length)return 0;return Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*20);};
+  const testScore=()=>{const cats=Object.keys(CAT_META);const vals=cats.map(k=>catScores[k]||0);const avg=vals.reduce((a,b)=>a+b,0)/cats.length;return Math.round(avg*20);};
+  const scoreColor=s=>s>=80?T.success:s>=60?T.teal:s>=40?T.gold:T.warn;
+
+  const catKeys=Object.keys(CAT_META);
+  const cat=CAT_META[catActiva];
+  const pregsCat=TEST_PREGUNTAS.filter(p=>p.categoria===catActiva);
+  const followUps=FOLLOW_UPS[catActiva]||[];
+  const alertas=pregsCat.filter(p=>{const r=resultado[p.id];return r&&r.puntos<=1;});
+
+  return(
+    <div style={{minHeight:"100vh",background:T.soft,fontFamily:"'Helvetica Neue',Arial,sans-serif"}}>
+      <div style={{background:`linear-gradient(150deg,${T.tealDeep},${T.teal})`,padding:"20px 20px 0",color:T.white}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+          <button onClick={onBack} style={{background:"rgba(255,255,255,0.15)",border:"none",color:T.white,padding:"7px 16px",borderRadius:20,cursor:"pointer",fontSize:13}}>← Volver</button>
+          <div style={{fontSize:13,fontWeight:700,opacity:0.85}}>Guía de Entrevista</div>
+          <button onClick={guardar} style={{background:guardado?"rgba(110,231,183,0.4)":"rgba(255,255,255,0.15)",border:"none",color:T.white,padding:"7px 16px",borderRadius:20,cursor:"pointer",fontSize:13,fontWeight:700}}>{guardado?"✓ Guardado":"💾 Guardar"}</button>
+        </div>
+        <div style={{marginBottom:12}}><div style={{fontSize:18,fontWeight:700}}>{candidata.nombre}</div><div style={{fontSize:12,opacity:0.7}}>#{candidata.codigo_seguimiento}</div></div>
+        <div style={{display:"flex",gap:10,marginBottom:12}}>
+          <div style={{flex:1,background:"rgba(255,255,255,0.12)",borderRadius:12,padding:"10px 12px",textAlign:"center"}}><div style={{fontSize:11,opacity:0.7,marginBottom:4}}>Test previo</div><div style={{fontSize:20,fontWeight:700,color:candidata.test_completado?"#6ee7b7":"rgba(255,255,255,0.4)"}}>{candidata.test_completado?`${testScore()}pts`:"—"}</div></div>
+          <div style={{flex:1,background:"rgba(255,255,255,0.12)",borderRadius:12,padding:"10px 12px",textAlign:"center"}}><div style={{fontSize:11,opacity:0.7,marginBottom:4}}>Entrevista</div><div style={{fontSize:20,fontWeight:700,color:"#fde68a"}}>{puntajeEntrevista()>0?`${puntajeEntrevista()}pts`:"—"}</div></div>
+        </div>
+        {!candidata.test_completado&&<div style={{background:"rgba(251,191,36,0.2)",border:"1px solid rgba(251,191,36,0.4)",borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:13,color:"#fde68a"}}>⚠️ La candidata no completó el test previo.</div>}
+        <svg viewBox="0 0 400 16" style={{display:"block",marginBottom:-1}}><path d="M0,8 C100,16 300,0 400,8 L400,16 L0,16 Z" fill={T.soft}/></svg>
+      </div>
+
+      <div style={{maxWidth:480,margin:"0 auto",padding:"16px 16px 80px"}}>
+        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:16}}>
+          {catKeys.map(k=>{const cm=CAT_META[k];const score=catScores[k]||0;const actv=catActiva===k;return(
+            <button key={k} onClick={()=>setCatActiva(k)} style={{padding:"8px 12px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",border:`1.5px solid ${actv?cm.color:T.border}`,background:actv?cm.color:T.white,color:actv?T.white:cm.color,flexShrink:0}}>
+              {cm.icon} {cm.label.split(" ")[0]}{candidata.test_completado&&score>0?` ${Math.round(score*20)}%`:""}
+            </button>
+          );})}
+        </div>
+
+        <div style={{background:T.white,borderRadius:18,padding:"20px",marginBottom:14,border:`2px solid ${cat.color}22`}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:22}}>{cat.icon}</span>
+              <div>
+                <div style={{fontWeight:700,fontSize:15,color:T.ink}}>{cat.label}</div>
+                {candidata.test_completado&&catScores[catActiva]!=null&&<div style={{fontSize:12,color:T.inkLight}}>Test: <span style={{fontWeight:700,color:scoreColor(Math.round((catScores[catActiva]||0)*20))}}>{Math.round((catScores[catActiva]||0)*20)}%</span></div>}
+              </div>
+            </div>
+            <div style={{textAlign:"right"}}><div style={{fontSize:11,color:T.inkLight,marginBottom:4}}>Tu calificación</div><StarRating value={entrevistaCal[catActiva]||0} onChange={v=>setEntrevistaCal(c=>({...c,[catActiva]:v}))} size={22}/></div>
+          </div>
+
+          {candidata.test_completado&&pregsCat.length>0&&<div style={{marginBottom:16}}>
+            <div style={{fontSize:11,color:T.inkLight,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>RESPUESTAS DEL TEST</div>
+            {pregsCat.map(p=>{
+              const r=resultado[p.id];const idx=r?.opcion??null;const pts=r?.puntos??0;
+              const ptsColor=pts>=4?T.success:pts>=3?T.teal:pts>=2?T.gold:T.warn;
+              return(<div key={p.id} style={{marginBottom:12,padding:"12px",background:pts<=1?"#fef2f2":T.tealLight,borderRadius:10,border:`1px solid ${pts<=1?T.warn+"44":T.tealMid}`}}>
+                <div style={{fontSize:12,color:T.inkLight,marginBottom:6}}>{p.pregunta}</div>
+                {idx!=null?<div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8}}><div style={{fontSize:13,fontWeight:600,color:T.ink,flex:1}}>"{p.opciones[idx].texto}"</div><span style={{fontSize:11,fontWeight:700,color:ptsColor,background:ptsColor+"15",border:`1px solid ${ptsColor}33`,padding:"2px 8px",borderRadius:10,whiteSpace:"nowrap"}}>{pts}/5</span></div>:<div style={{fontSize:13,color:T.inkLight,fontStyle:"italic"}}>Sin responder</div>}
+              </div>);
+            })}
+          </div>}
+
+          {candidata.test_completado&&alertas.length>0&&<div style={{background:"#fef2f2",border:`1px solid ${T.warn}44`,borderRadius:10,padding:"10px 14px",marginBottom:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:T.warn,marginBottom:6}}>⚠️ Respuestas a explorar en la entrevista</div>
+            {alertas.map(p=>(<div key={p.id} style={{fontSize:12,color:T.warn,marginBottom:2}}>· {p.pregunta.substring(0,80)}...</div>))}
+          </div>}
+
+          <div>
+            <div style={{fontSize:11,color:T.inkLight,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>PREGUNTAS DE SEGUIMIENTO</div>
+            {followUps.map((q,i)=>(<div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:`1px solid ${T.tealLight}`}}><span style={{fontSize:16,color:cat.color,flexShrink:0}}>?</span><span style={{fontSize:13,color:T.ink,lineHeight:1.5}}>{q}</span></div>))}
+          </div>
+        </div>
+
+        <div style={{background:T.white,borderRadius:18,padding:"20px",marginBottom:14,border:`1px solid ${T.border}`}}>
+          <div style={{fontSize:12,fontWeight:700,color:T.tealDark,letterSpacing:1,textTransform:"uppercase",marginBottom:14}}>📊 Resumen de categorías</div>
+          {catKeys.map(k=>{const cm=CAT_META[k];const testVal=candidata.test_completado?(catScores[k]||0)*20:null;const entVal=(entrevistaCal[k]||0)*20;return(
+            <div key={k} style={{marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                <div style={{fontSize:13,color:T.ink,fontWeight:600}}>{cm.icon} {cm.label}</div>
+                <div style={{display:"flex",gap:8,fontSize:11}}>
+                  {testVal!=null&&<span style={{color:scoreColor(testVal)}}>Test: {Math.round(testVal)}%</span>}
+                  {entVal>0&&<span style={{color:scoreColor(entVal)}}>Ent: {Math.round(entVal)}%</span>}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                {candidata.test_completado&&testVal!=null&&<div style={{flex:1,height:4,background:"#e5e7eb",borderRadius:2,overflow:"hidden"}}><div style={{width:`${testVal}%`,height:"100%",background:scoreColor(testVal),borderRadius:2,opacity:0.5}}/></div>}
+                <div style={{flex:1,height:4,background:"#e5e7eb",borderRadius:2,overflow:"hidden"}}><div style={{width:`${entVal}%`,height:"100%",background:scoreColor(entVal),borderRadius:2}}/></div>
+              </div>
+            </div>
+          );})}
+        </div>
+
+        <div style={{background:T.white,borderRadius:18,padding:"20px",marginBottom:14,border:`1px solid ${T.border}`}}>
+          <div style={{fontSize:12,fontWeight:700,color:T.tealDark,letterSpacing:1,textTransform:"uppercase",marginBottom:12}}>📝 Notas de entrevista</div>
+          <textarea style={{...iS,height:120,resize:"vertical",fontSize:13}} placeholder="Impresiones generales, observaciones clave, alertas, próximos pasos..." value={notas} onChange={e=>setNotas(e.target.value)}/>
+        </div>
+
+        <button onClick={guardar} style={{width:"100%",padding:"16px",borderRadius:14,border:"none",background:guardado?T.success:`linear-gradient(135deg,${T.teal},${T.tealDeep})`,color:T.white,fontWeight:700,fontSize:15,cursor:"pointer",boxShadow:`0 4px 16px ${T.teal}44`,transition:"background 0.3s"}}>
+          {guardado?"✓ Guardado":"💾 Guardar evaluación de entrevista"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── OPERATOR PANEL ───────────────────────────────────────────
 function OperatorPanel(){
   const [candidatas,setCandidatas]=useState([]);
@@ -321,6 +583,7 @@ function OperatorPanel(){
   const [notasSaved,setNotasSaved]=useState(false);
   const [calDraft,setCalDraft]=useState({});
   const [confirmDelete,setConfirmDelete]=useState(false);
+  const [vistaEntrevista,setVistaEntrevista]=useState(null); // null | "test" | "guia"
 
   const cargar=async()=>{
     setLoading(true);
@@ -377,6 +640,28 @@ function OperatorPanel(){
 
   // Perfil
   if(selected){
+    if(vistaEntrevista==="test") return(
+      <CandidateTest
+        candidataId={selected.id}
+        candidataNombre={selected.nombre.split(" ")[0]}
+        onComplete={()=>{
+          supabase.from("candidatas").select("*").eq("id",selected.id).single().then(({data})=>{
+            if(data){setSelected(data);setCandidatas(p=>p.map(c=>c.id===data.id?data:c));}
+          });
+          setVistaEntrevista(null);
+        }}
+      />
+    );
+    if(vistaEntrevista==="guia") return(
+      <InterviewGuide
+        candidata={selected}
+        onBack={()=>setVistaEntrevista(null)}
+        onSave={(updates)=>{
+          setSelected(p=>({...p,...updates}));
+          setCandidatas(p=>p.map(c=>c.id===selected.id?{...c,...updates}:c));
+        }}
+      />
+    );
     const c=selected;
     const estObj=ESTADOS[c.estado]||ESTADOS["recibida"];
     const pts=puntajeTotal(c.calificacion||{});
@@ -414,6 +699,18 @@ function OperatorPanel(){
         <div style={{maxWidth:480,margin:"0 auto",padding:"16px 16px 80px"}}>
           <div style={{background:estObj.bg,border:`1.5px solid ${estObj.color}44`,borderRadius:14,padding:"10px 16px",marginBottom:12}}><span style={{color:estObj.color,fontWeight:700,fontSize:14}}>● {estObj.label}</span></div>
           {mostrarWA&&<WhatsAppBtn candidata={c} tipo={tipoWA}/>}
+
+          {/* Botones de entrevista */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+            <button onClick={()=>setVistaEntrevista("test")} style={{padding:"13px 10px",borderRadius:12,border:"1.5px solid #7c3aed",background:c.test_completado?"#f5f3ff":T.white,color:"#7c3aed",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <span>{c.test_completado?"✓ Test":"📋 Test"}</span>
+              <span style={{fontSize:10,opacity:0.7,fontWeight:400}}>{c.test_completado?"Completado · ver de nuevo":"Dar iPad a candidata"}</span>
+            </button>
+            <button onClick={()=>setVistaEntrevista("guia")} style={{padding:"13px 10px",borderRadius:12,border:`1.5px solid ${T.teal}`,background:T.white,color:T.teal,fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <span>🎯 Entrevista</span>
+              <span style={{fontSize:10,opacity:0.7,fontWeight:400}}>Guía del operador</span>
+            </button>
+          </div>
 
           {/* Evaluación */}
           <div style={{background:T.white,borderRadius:16,padding:"18px",marginBottom:14,border:`1px solid ${T.gold}44`}}>
