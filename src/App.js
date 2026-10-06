@@ -926,6 +926,47 @@ function OperatorPanel(){
             </button>
           </div>
 
+          {/* Resultados de entrevista */}
+          {c.entrevista_cal&&Object.keys(c.entrevista_cal).some(k=>k.endsWith("_cal"))&&(()=>{
+            const cal=c.entrevista_cal||{};
+            const semVal=v=>v==="bien"?3:v==="explorar"?2:v==="alerta"?1:0;
+            const semIcon=v=>v==="bien"?"✅":v==="explorar"?"⚠️":v==="alerta"?"🚨":"—";
+            const semColor=v=>v==="bien"?"#059669":v==="explorar"?"#d97706":v==="alerta"?"#dc2626":"#9ca3af";
+            const semBg=v=>v==="bien"?"#d1fae5":v==="explorar"?"#fef3c7":v==="alerta"?"#fee2e2":"#f3f4f6";
+            const vals=Object.keys(CAT_META).map(k=>semVal(cal[k+"_cal"])).filter(v=>v>0);
+            const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+            const veredicto=avg>=2.5?"bien":avg>=1.5?"explorar":avg>0?"alerta":null;
+            return(
+              <div style={{background:T.white,borderRadius:16,padding:"18px",marginBottom:10,border:`2px solid ${veredicto?semColor(veredicto)+"44":T.border}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                  <div style={{fontSize:12,fontWeight:700,color:T.tealDark,letterSpacing:1,textTransform:"uppercase"}}>🎯 Entrevista</div>
+                  {veredicto&&<span style={{padding:"4px 12px",borderRadius:20,fontSize:12,fontWeight:700,background:semBg(veredicto),color:semColor(veredicto)}}>{semIcon(veredicto)} {veredicto==="bien"?"Perfil Sólido":veredicto==="explorar"?"Revisar":"Alerta"}</span>}
+                  <button onClick={()=>setVistaEntrevista("guia")} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:10,padding:"4px 10px",fontSize:12,color:T.inkLight,cursor:"pointer"}}>✏️ Editar</button>
+                </div>
+                {Object.keys(CAT_META).map(k=>{
+                  const v=cal[k+"_cal"];
+                  const nota=cal[k+"_nota"];
+                  if(!v)return null;
+                  return(
+                    <div key={k} style={{padding:"10px 0",borderBottom:`1px solid ${T.tealLight}`}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                        <span style={{fontSize:13,color:T.ink}}>{CAT_META[k].icon} {CAT_META[k].label}</span>
+                        <span style={{padding:"3px 10px",borderRadius:20,fontSize:12,fontWeight:700,background:semBg(v),color:semColor(v)}}>{semIcon(v)}</span>
+                      </div>
+                      {nota&&<p style={{margin:"6px 0 0",fontSize:12,color:T.inkLight,lineHeight:1.5,paddingLeft:4}}>{nota}</p>}
+                    </div>
+                  );
+                })}
+                {c.entrevista_notas&&(
+                  <div style={{marginTop:12,padding:"10px 12px",background:T.tealLight,borderRadius:10}}>
+                    <div style={{fontSize:11,fontWeight:700,color:T.tealDark,marginBottom:4}}>NOTAS GENERALES</div>
+                    <p style={{margin:0,fontSize:13,color:T.tealDark,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{c.entrevista_notas}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Evaluación */}
           <div style={{background:T.white,borderRadius:16,padding:"18px",marginBottom:14,border:`1px solid ${T.gold}44`}}>
             <div style={{fontSize:12,fontWeight:700,color:T.gold,letterSpacing:1,textTransform:"uppercase",marginBottom:14}}>⭐ Evaluación</div>
