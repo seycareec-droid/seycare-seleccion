@@ -783,7 +783,7 @@ function OperatorPanel(){
     if(data)setCandidatas(data);
     setLoading(false);
   };
-  useEffect(()=>{cargar();},[convId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(()=>{cargar();},[convId]);
 
   const abrirPerfil=(c)=>{setSelected(c);setNotasDraft(c.notas_operador||"");setCalDraft(c.calificacion||{});setNotasSaved(false);setConfirmDelete(false);};
 
